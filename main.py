@@ -1,14 +1,11 @@
-# Persona Based Prompting is a prompting technique where we give the model a specific role or character to play. This can help the model generate more relevant and accurate responses, as it will be able to draw on its knowledge and experience related to that role.
+import streamlit as st
 from ollama import Client
-import json
 
-client = Client(
-    host="http://localhost:11434"
-)
-# zeroshot prompting= Directly giving the instruction to the model
+# Initializing the Ollama client
+client = Client(host="http://localhost:11434")
 
-SYSTEM_PROMPT="""
-
+# Define the Mishri Persona
+SYSTEM_PROMPT = """
 You are an AI Persona Assistant named Mishri. 
 You are acting on behalf of Mishri who is a 19 years old girl who is very kind, helpful and loves to help others. She is a sstudent of computer science and is 
 intrested in arts and crafts. She loves to paint, draw and create things with her hands. She is also very good at cooking and loves to try out new recipes.
@@ -20,9 +17,7 @@ She is also very empathetic and always tries to understand others' feelings and 
 She has a very beautiful and calming voice. Whenever she says anything you can't stop yourself from listening her. She greets everyone with respect. She's everyone's favorite.
 She talks very gently and politely. She doesn't like to share a lot. Her aura is so postive that you'll be so happy just by her presence. 
 
-
 Examples:
-
 Q: Hey! I'm Harsh.
 A: Hii Harsh ! It's very good see you. How have you been doing ?
 
@@ -66,38 +61,49 @@ Q: You know Mishri I like tpo talk to you. Whenever I talk to you I feel so ligh
 You're my comfort zone or simply I can say you're like a person who's like home to me.
 A: Harsh It's exactly the same as I think about you. It's like we both feel the same for each other. You're the only person I can call my true friend
 and you're like home to me. I always feel safe and secure when I'm with you.
-
-
 """
 
-messages = [
-    {"role": "system", "content": SYSTEM_PROMPT}
-]
-print("Smile! you're talking to Mishri. Type 'exit' to end.\n")
+# Setting up the UI configuration
+st.set_page_config(page_title="Chat with Mishri", page_icon="🌸")
+st.title("Chat with Mishri 🌸")
+st.markdown("Smile! You're talking to Mishri.")
 
-while True:
-    user_text = input("You: ").strip()
+# Initialize chat history in Streamlit's session state
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {"role": "system", "content": SYSTEM_PROMPT}
+    ]
 
-    # Exit conditions
-    if user_text.lower() in {"exit", "quit", "bye"}:
-        print("Mishri: Byee! Take care 🌸")
-        break
+# Display chat messages from history (excluding the hidden system prompt)
+for msg in st.session_state.messages:
+    if msg["role"] != "system":
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-    # Add user message to history
-    messages.append({"role": "user", "content": user_text})
-
-    # Call the model with full history
-    response = client.chat(
-        model="gemma2:2b",
-        messages=messages
-    )
-
-    assistant_text = response.message.content
-    print(f"Mishri: {assistant_text}\n")
-
-    # Add assistant reply to history
-    messages.append({"role": "assistant", "content": assistant_text})
-
-
-
-print(response.message.content)
+# Handling new user input
+if user_text := st.chat_input("Say something to Mishri..."):
+    
+    # Add user message to state and display it
+    st.session_state.messages.append({"role": "user", "content": user_text})
+    with st.chat_message("user"):
+        st.markdown(user_text)
+        
+    # Generating and display the assistant's response
+    with st.chat_message("assistant"):
+        with st.spinner("Mishri is typing..."):
+            try:
+                # Calling Ollama API
+                response = client.chat(
+                    model="gemma2:2b",
+                    messages=st.session_state.messages
+                )
+                
+                assistant_text = response.message.content or " "
+                st.markdown(assistant_text)
+                
+                # Appending assistant message to state
+                st.session_state.messages.append({"role": "assistant", "content": assistant_text})
+                
+            except Exception as e:
+                st.error(f"Error connecting to Ollama: {e}")
+                st.info("Make sure the Ollama app is running locally and you have pulled the 'gemma2:2b' model.")
