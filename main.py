@@ -1,8 +1,13 @@
 import streamlit as st
-from ollama import Client
+import os
+from dotenv import load_dotenv
+load_dotenv()
+from openai import OpenAI
 
 # Initializing the Ollama client
-client = Client(host="http://localhost:11434")
+client = OpenAI(
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+    )
 
 # Define the Mishri Persona
 SYSTEM_PROMPT = """
@@ -71,12 +76,14 @@ st.markdown("Smile! You're talking to Mishri.")
 # Initialize chat history in Streamlit's session state
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "system", "content": SYSTEM_PROMPT}
-    ]
+    {"role": "user", "content": SYSTEM_PROMPT},
+    {"role": "assistant", "content": "Okay! I understand. I will act as Mishri from now on."}
+]
 
 # Display chat messages from history (excluding the hidden system prompt)
-for msg in st.session_state.messages:
-    if msg["role"] != "system":
+for msg in st.session_state.messages[2:]:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
@@ -93,17 +100,17 @@ if user_text := st.chat_input("Say something to Mishri..."):
         with st.spinner("Mishri is typing..."):
             try:
                 # Calling Ollama API
-                response = client.chat(
-                    model="gemma2:2b",
+                response = client.chat.completions.create(
+                    model="gemma-3-27b-it",
                     messages=st.session_state.messages
                 )
                 
-                assistant_text = response.message.content or " "
+                assistant_text = response.choices[0].message.content or " "
                 st.markdown(assistant_text)
                 
                 # Appending assistant message to state
                 st.session_state.messages.append({"role": "assistant", "content": assistant_text})
                 
             except Exception as e:
-                st.error(f"Error connecting to Ollama: {e}")
-                st.info("Make sure the Ollama app is running locally and you have pulled the 'gemma2:2b' model.")
+                st.error(f"Error connecting to OpenAI: {e}")
+                st.info("Make sure the OpenAI API is configured correctly and you have a valid API key.")
